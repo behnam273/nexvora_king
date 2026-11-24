@@ -13,14 +13,31 @@ class Base(DeclarativeBase):
 
 
 def normalize_database_url(raw_url: str) -> str:
-    """Normalize Railway/Supabase postgres:// or postgresql+psycopg:// URLs for SQLAlchemy 2.x + psycopg2."""
+    """
+    Normalize Railway/Supabase URLs for SQLAlchemy 2.x + psycopg2.
+
+    Supabase (and most managed Postgres) refuse non-TLS connections, and a URL
+    pasted straight from a dashboard often omits `sslmode`. Rather than failing at
+    boot with an opaque psycopg2 error, SSL is enforced for those hosts here.
+    """
     url = raw_url.strip()
     if url.startswith("postgres://"):
-        return "postgresql+psycopg2://" + url[len("postgres://"):]
-    if url.startswith("postgresql+psycopg://"):
-        return "postgresql+psycopg2://" + url[len("postgresql+psycopg://"):]
-    if url.startswith("postgresql://"):
-        return "postgresql+psycopg2://" + url[len("postgresql://"):]
+        url = "postgresql+psycopg2://" + url[len("postgres://"):]
+    elif url.startswith("postgresql+psycopg://"):
+        url = "postgresql+psycopg2://" + url[len("postgresql+psycopg://"):]
+    elif url.startswith("postgresql://"):
+        url = "postgresql+psycopg2://" + url[len("postgresql://"):]
+
+    if url.startswith("postgresql+psycopg2://") and "sslmode=" not in url:
+        host_part = url.split("@")[-1].lower()
+        # Supabase (and its pooler) is reachable over the public internet and
+        # rejects plaintext connections. Railway's private network
+        # (db.railway.internal) must NOT be forced to TLS, so it is excluded.
+        needs_tls = "supabase" in host_part or "pooler." in host_part
+        if "railway.internal" in host_part:
+            needs_tls = False
+        if needs_tls:
+            url += ("&" if "?" in url else "?") + "sslmode=require"
     return url
 
 
@@ -90,14 +107,27 @@ def _existing_columns(table_name: str) -> set[str]:
     return {c["name"] for c in insp.get_columns(table_name)}
 
 
+def _is_postgres() -> bool:
+    return not str(engine.url).startswith("sqlite")
+
+
 def _default_sql_for(column) -> str:
-    """Render a safe literal default for an ADD COLUMN statement."""
+    """
+    Render a safe literal default for an ADD COLUMN statement.
+
+    Dialect-aware on purpose: PostgreSQL rejects `BOOLEAN DEFAULT 1` (it demands
+    true/false), so a SQLite-shaped default would abort the boot-time migration
+    on a Postgres deployment (Railway / Supabase).
+    """
     from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text
 
     col_type = column.type
     default = column.default.arg if column.default is not None and not callable(column.default.arg) else None
     if isinstance(col_type, Boolean):
-        return "DEFAULT " + ("1" if (default if default is not None else False) else "0") + " NOT NULL"
+        value = bool(default) if default is not None else False
+        if _is_postgres():
+            return f"DEFAULT {'true' if value else 'false'} NOT NULL"
+        return "DEFAULT " + ("1" if value else "0") + " NOT NULL"
     if isinstance(col_type, (Integer,)):
         return f"DEFAULT {int(default or 0)} NOT NULL"
     if isinstance(col_type, (Float,)):

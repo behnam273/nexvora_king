@@ -206,3 +206,51 @@ def test_each_timeframe_keeps_its_own_target_ladder(tmp_path):
     # Ladders must stay ordered per timeframe (a broken ladder silently kills signals)
     for pol in (p4, p15, p5):
         assert pol.tp1_rr < pol.tp2_rr < pol.tp3_rr
+
+
+def test_schema_upgrade_defaults_are_dialect_aware():
+    """
+    PostgreSQL rejects `BOOLEAN DEFAULT 1`, so the forward migration must emit
+    true/false on Postgres while staying 1/0 on SQLite. Without this, boot dies on
+    a Postgres deployment (Railway / Supabase) the moment a column is added.
+    """
+    from sqlalchemy import Boolean, Float, Integer, String
+
+    from app import database as db_mod
+
+    col_bool = type("C", (), {"type": Boolean(), "default": type("D", (), {"arg": True})()})()
+    col_float = type("C", (), {"type": Float(), "default": type("D", (), {"arg": 0.5})()})()
+    col_str = type("C", (), {"type": String(10), "default": type("D", (), {"arg": ""})()})()
+
+    original = db_mod._is_postgres
+    try:
+        db_mod._is_postgres = lambda: False
+        assert db_mod._default_sql_for(col_bool) == "DEFAULT 1 NOT NULL"
+        assert db_mod._default_sql_for(col_float) == "DEFAULT 0.5 NOT NULL"
+        assert "DEFAULT '' NOT NULL" == db_mod._default_sql_for(col_str)
+
+        db_mod._is_postgres = lambda: True
+        assert db_mod._default_sql_for(col_bool) == "DEFAULT true NOT NULL"
+        assert db_mod._default_sql_for(col_float) == "DEFAULT 0.5 NOT NULL"
+    finally:
+        db_mod._is_postgres = original
+
+
+def test_supabase_urls_get_ssl_enforced():
+    """A URL pasted without sslmode would fail at boot on managed Postgres."""
+    from app.database import normalize_database_url as n
+
+    direct = n("postgres://postgres:pw@db.abc.supabase.co:5432/postgres")
+    assert direct.startswith("postgresql+psycopg2://")
+    assert "sslmode=require" in direct
+
+    pooler = n("postgresql://postgres:pw@aws-0-eu-central-1.pooler.supabase.com:6543/postgres")
+    assert "sslmode=require" in pooler
+
+    # an explicit sslmode wins over our default
+    explicit = n("postgresql://u:p@db.abc.supabase.co:5432/postgres?sslmode=verify-full")
+    assert explicit.count("sslmode=") == 1
+    assert "verify-full" in explicit
+
+    # sqlite untouched
+    assert n("sqlite:///./nexvora.db") == "sqlite:///./nexvora.db"
