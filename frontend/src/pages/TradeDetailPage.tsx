@@ -260,6 +260,46 @@ export const TradeDetailPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Signal integrity: the numbers that justify (or refuse) publication */}
+            <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-3">
+              <div className="flex items-center justify-between rounded-lg bg-nx-bg/60 px-3 py-2">
+                <span className="text-nx-muted">ریسک ساختاری</span>
+                <LtrValue className="font-bold text-nx-text">
+                  {(t.risk_pips ?? 0).toFixed(0)}p / {(t.risk_atr ?? 0).toFixed(1)}×ATR
+                </LtrValue>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-nx-bg/60 px-3 py-2">
+                <span className="text-nx-muted">ریسک‌فری در</span>
+                <LtrValue className="font-bold text-nx-profit">
+                  {t.early_be_price ? formatPrice(t.symbol, t.early_be_price) : '—'}
+                </LtrValue>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-nx-bg/60 px-3 py-2">
+                <span className="text-nx-muted">PF بک‌تست ورود</span>
+                <LtrValue className="font-bold text-nx-gold">
+                  {(t.backtest_profit_factor_at_entry ?? 0).toFixed(2)}
+                </LtrValue>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-nx-bg/60 px-3 py-2">
+                <span className="text-nx-muted">بهترین/بدترین حرکت</span>
+                <LtrValue className="font-bold text-nx-text">
+                  {(t.max_favorable_r ?? 0).toFixed(1)}R / {(t.max_adverse_r ?? 0).toFixed(1)}R
+                </LtrValue>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-nx-bg/60 px-3 py-2">
+                <span className="text-nx-muted">اعتبار سفارش</span>
+                <span className="font-bold text-nx-text">
+                  {t.pending_expires_at ? formatDateTimeFa(t.pending_expires_at) : '—'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-nx-bg/60 px-3 py-2">
+                <span className="text-nx-muted">سیاست ریسک</span>
+                <span className="font-bold text-nx-gold" dir="ltr">
+                  {t.policy_version || '—'}
+                </span>
+              </div>
+            </div>
+
             <div className="mt-4 rounded-xl border border-nx-gold/20 bg-nx-bg/50 p-3 text-xs leading-6 text-nx-muted">
               <strong className="text-nx-gold">تحلیل موتور Trading Hub 3.0: </strong>
               {t.rationale_fa}
