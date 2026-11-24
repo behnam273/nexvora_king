@@ -125,6 +125,7 @@ export interface BacktestQualification {
   max_drawdown_pct: number;
   avg_r: number;
   avg_hold_bars?: number;
+  channel_rank?: number;
   window_bars: number;
   data_source: string;
   is_demo_data: boolean;

@@ -145,11 +145,43 @@ app.include_router(admin.router)
 
 @app.get("/api/v1/health")
 def health():
+    """
+    Liveness + readiness for the platform healthcheck.
+
+    Reports enough runtime facts that a bad deploy is diagnosable from the curl
+    alone: whether the DB is reachable, whether bundled card fonts are present
+    (missing fonts silently break Persian Telegram cards), and the live policy
+    version actually in force.
+    """
+    from app.database import engine as db_engine
+    from app.engine.policy import TRADING_POLICY_VERSION
+
+    db_state = "ok"
+    try:
+        from sqlalchemy import text
+
+        with db_engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as exc:  # pragma: no cover - defensive
+        db_state = f"error: {type(exc).__name__}"
+
+    try:
+        from app.services.signal_card import _bundled_font
+
+        fa_font = bool(_bundled_font(bold=False))
+    except Exception:
+        fa_font = False
+
     return {
-        "status": "ok",
+        "status": "ok" if db_state == "ok" else "degraded",
         "service": "nexvora-hub3-backend",
         "build": APP_BUILD_ID,
+        "env": settings.nexvora_env,
         "data_mode": settings.nexvora_data_mode,
+        "database": db_state,
+        "persian_card_fonts": fa_font,
+        "policy_version": TRADING_POLICY_VERSION,
+        "telegram_configured": bool(settings.telegram_bot_token and settings.telegram_channel_id),
         "allowed_symbols": ALLOWED_SYMBOLS,
         "allowed_timeframes": ALLOWED_TIMEFRAMES,
     }

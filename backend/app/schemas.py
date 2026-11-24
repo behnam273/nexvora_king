@@ -188,6 +188,7 @@ class BacktestQualificationOut(BaseModel):
     max_drawdown_pct: float
     avg_r: float
     avg_hold_bars: float = 0.0
+    channel_rank: int = 0
     window_bars: int
     data_source: str
     is_demo_data: bool

@@ -222,7 +222,7 @@ export const AnalyticsPage: React.FC = () => {
               دروازه انتخاب ارزهای با Win Rate قوی برای کانال تلگرام (۶ نماد × ۳ تایم‌فریم)
             </h2>
             <p className="mt-0.5 text-xs text-nx-muted">
-              تنها ترکیب‌هایی که در بک‌تست Rolling روی هسته Trading Hub 3.0 از آستانه Win Rate و Profit Factor عبور کنند، مجوز ارسال به کانال تلگرام می‌گیرند.
+              کانال تلگرام هدف وین‌ریت بالای ۷۰٪ را دارد؛ بنابراین فقط ترکیب‌هایی که هم از آستانه Win Rate و Profit Factor عبور کنند و هم در «سهمیه بهترین ترکیب‌ها» قرار بگیرند مجوز ارسال می‌گیرند. بقیه در PWA برای پایش می‌مانند.
             </p>
           </div>
           <Badge variant="gold">
@@ -272,6 +272,11 @@ export const AnalyticsPage: React.FC = () => {
                     </td>
                     <td className="py-2.5">
                       <LtrValue>{q.total_trades} ({q.winning_trades}W/{q.losing_trades}L)</LtrValue>
+                      {q.channel_rank ? (
+                        <span className="mr-1.5 rounded-md border border-nx-gold/40 bg-nx-gold/10 px-1.5 py-0.5 text-[10px] font-bold text-nx-gold">
+                          رتبه کانال <LtrValue>{q.channel_rank}</LtrValue>
+                        </span>
+                      ) : null}
                     </td>
                     <td className="py-2.5 font-bold">
                       <LtrValue className={q.win_rate >= 55 ? 'text-nx-profit' : 'text-nx-muted'}>

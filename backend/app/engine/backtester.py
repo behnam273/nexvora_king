@@ -353,10 +353,74 @@ def evaluate_pair_backtest(
     return row, results
 
 
+# The channel targets a >70% win rate. Publishing all 18 symbol/timeframe cells
+# guarantees a blended rate far below that, so the channel only ever carries the
+# statistically strongest cells (selected on backtest evidence, never on
+# in-sample cherry-picking of individual trades).
+CHANNEL_TARGET_WINRATE = 70.0
+CHANNEL_MAX_CELLS = 4
+CHANNEL_MIN_CELL_TRADES = 10
+
+
 def refresh_all_qualifications(db: Session, cfg: Optional[EngineConfig] = None) -> List[BacktestQualification]:
     rows: List[BacktestQualification] = []
     for sym in ALLOWED_SYMBOLS:
         for tf in ALLOWED_TIMEFRAMES:
             q, _ = evaluate_pair_backtest(sym, tf, db, cfg)
             rows.append(q)
+    _apply_channel_selectivity(db, rows)
     return rows
+
+
+def _apply_channel_selectivity(db: Session, rows: List[BacktestQualification]) -> None:
+    """
+    Concentrate the Telegram channel on the few cells that clear the target.
+
+    A cell stays published only if it clears the win-rate target *and* ranks in
+    the top ``CHANNEL_MAX_CELLS`` by an evidence score that rewards win rate but
+    penalises thin samples. Everything else keeps running and stays visible in
+    the PWA as "monitor only" — it just never reaches the public channel.
+    """
+    candidates = [
+        r
+        for r in rows
+        if r.eligible_for_telegram
+        and (r.total_trades or 0) >= CHANNEL_MIN_CELL_TRADES
+        and (r.win_rate or 0.0) >= CHANNEL_TARGET_WINRATE
+        and not r.is_demo_data
+    ]
+
+    def evidence_score(r: BacktestQualification) -> float:
+        # Shrink win rate toward 50% for small samples (Wilson-like penalty).
+        n = max(int(r.total_trades or 0), 1)
+        shrink = n / (n + 20.0)
+        adj_wr = 50.0 + ((r.win_rate or 0.0) - 50.0) * shrink
+        return adj_wr + 8.0 * min(float(r.profit_factor or 0.0), 3.0) + min(float(r.expectancy_r or 0.0), 1.0) * 5.0
+
+    candidates.sort(key=evidence_score, reverse=True)
+    selected = {id(r) for r in candidates[:CHANNEL_MAX_CELLS]}
+
+    for r in rows:
+        if id(r) in selected:
+            r.channel_rank = candidates.index(r) + 1
+            continue
+        if r.eligible_for_telegram:
+            r.eligible_for_telegram = False
+            if r.is_demo_data:
+                r.reason_fa = (
+                    "فقط پایش در PWA — این داده بازپخش/آزمایشی است و هرگز به کانال تلگرام ارسال نمی‌شود."
+                )
+            elif (r.win_rate or 0) < CHANNEL_TARGET_WINRATE:
+                r.reason_fa = (
+                    f"فقط پایش در PWA — وین‌ریت {r.win_rate:.1f}% زیر هدف کانال ({CHANNEL_TARGET_WINRATE:.0f}%) است. "
+                    f"برای رسیدن به هدف، کانال تنها بهترین ترکیب‌ها را منتشر می‌کند."
+                )
+            else:
+                r.reason_fa = (
+                    f"فقط پایش در PWA — وین‌ریت {r.win_rate:.1f}% قابل قبول است اما از سهمیه "
+                    f"{CHANNEL_MAX_CELLS} ترکیب برتر کانال خارج شد."
+                )
+            r.channel_rank = 0
+        else:
+            r.channel_rank = 0
+    db.commit()
