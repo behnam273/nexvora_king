@@ -60,7 +60,7 @@ def get_market_overview(
                 "backtest_win_rate": float(q.win_rate) if q else 0.0,
                 "backtest_profit_factor": float(q.profit_factor) if q else 0.0,
                 "backtest_trades": int(q.total_trades) if q else 0,
-                "is_demo_data": series.is_demo_data,
+                "is_demo_data": bool(s_tf.is_demo_data),
                 "di_plus": ev.di_plus,
                 "di_minus": ev.di_minus,
                 "min_score": ev.policy.min_score if ev.policy else 0.0,
