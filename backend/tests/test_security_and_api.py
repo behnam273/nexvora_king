@@ -216,3 +216,28 @@ def test_railway_production_readiness_db_url_cors_and_spa():
         traversal = client.get("/..%2F..%2Fbackend/requirements.txt")
         assert "fastapi==" not in traversal.text
 
+
+
+def test_preview_session_cookie_is_partitioned_and_can_be_deleted():
+    rate_limiter.reset()
+    _cleanup_test_users()
+    with TestClient(app, base_url='https://5173-test.e2b.app') as client:
+        response = client.post('/api/v1/auth/register', json={
+            'email': 'usera@nexvora.test', 'full_name': 'Preview user', 'password': 'StrongPassword!123',
+        })
+        assert response.status_code == 201
+        cookie = response.headers['set-cookie'].lower()
+        assert 'partitioned' in cookie and 'secure' in cookie and 'samesite=none' in cookie and 'httponly' in cookie
+        assert client.get('/api/v1/auth/me').status_code == 200
+        logout = client.post('/api/v1/auth/logout', headers={'X-CSRF-Token': response.json()['csrf_token']})
+        assert logout.status_code == 200
+        assert 'partitioned' in logout.headers['set-cookie'].lower()
+        assert client.get('/api/v1/auth/me').status_code == 401
+
+    _cleanup_test_users()
+    with TestClient(app) as client:
+        response = client.post('/api/v1/auth/register', json={
+            'email': 'usera@nexvora.test', 'full_name': 'Normal user', 'password': 'StrongPassword!123',
+        })
+        assert response.status_code == 201
+        assert 'partitioned' not in response.headers['set-cookie'].lower()
