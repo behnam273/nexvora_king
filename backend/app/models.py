@@ -213,6 +213,8 @@ class BacktestQualification(Base):
     max_drawdown_pct: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     avg_r: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     avg_hold_bars: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    # 1..N when this cell is one of the published channel cells, 0 otherwise.
+    channel_rank: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     window_bars: Mapped[int] = mapped_column(Integer, default=500, nullable=False)
 
     data_source: Mapped[str] = mapped_column(String(64), default="unknown", nullable=False)

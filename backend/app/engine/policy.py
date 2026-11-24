@@ -214,6 +214,8 @@ def policy_with_overrides(
     min_score: float | None = None,
     min_adx: float | None = None,
     require_session: bool | None = None,
+    min_rr_tp1: float | None = None,
+    early_be_fraction: float | None = None,
 ) -> TimeframePolicy:
     """Apply the admin-editable EngineConfig values on top of the base policy."""
     base = get_policy(timeframe)
@@ -234,6 +236,10 @@ def policy_with_overrides(
         changes["min_adx"] = float(min_adx)
     if require_session is not None:
         changes["require_session"] = bool(require_session)
+    if min_rr_tp1 is not None:
+        changes["min_rr_tp1"] = float(min_rr_tp1)
+    if early_be_fraction is not None:
+        changes["early_be_fraction"] = min(max(float(early_be_fraction), 0.1), 0.98)
     if not changes:
         return base
 

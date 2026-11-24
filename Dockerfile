@@ -27,7 +27,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install DejaVu fonts for institutional PNG signal card rendering in Telegram/PWA
+# Fonts: the signal card bundles Vazirmatn (Arabic/Persian glyphs) and falls back
+# to DejaVu for Latin/mono runs. Without the bundled font Persian text renders as
+# empty boxes in the Telegram card.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends fonts-dejavu-core && \
     rm -rf /var/lib/apt/lists/*
@@ -41,8 +43,10 @@ COPY backend/requirements.txt /app/backend/requirements.txt
 RUN pip install --no-cache-dir "setuptools<81" wheel && \
     pip install --no-cache-dir --prefer-binary -r /app/backend/requirements.txt
 
-# Copy backend application and built frontend PWA bundle
+# Copy backend application, bundled assets (Vazirmatn fonts for signal cards) and
+# the built frontend PWA bundle. Omitting assets/ silently degrades Telegram cards.
 COPY backend/app /app/backend/app
+COPY backend/assets /app/backend/assets
 COPY --from=frontend-builder /build/frontend/dist /app/frontend/dist
 
 # Ensure writable data directory if SQLite fallback or Railway Volume is mounted at /app/data
