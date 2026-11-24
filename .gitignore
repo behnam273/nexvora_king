@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+backend/.venv/
+.venv/
+.pytest_cache/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.tsbuildinfo
+
+# Environment & secrets
+.env
+backend/.env
+frontend/.env
+frontend/.env.local
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+node_modules/
+dist/
+.vite/
+
+# OS & Logs
+.DS_Store
+*.log
+logs/
+coverage/
+
+# Uploaded source archives (kept outside git)
+behrad.zip
+NEXVORA_PWA_Arena_Reference.zip
+*.zip
