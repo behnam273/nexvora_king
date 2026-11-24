@@ -58,6 +58,13 @@ def _reset_config_to_policy_defaults(cfg: EngineConfig) -> None:
     cfg.tp3_rr = ref.tp3_rr
     cfg.tp1_exit_pct = ref.tp1_exit_pct
     cfg.tp2_exit_pct = ref.tp2_exit_pct
+    for tf, suffix in (("4H", "4h"), ("5m", "5m")):
+        b = bases[tf]
+        setattr(cfg, f"tp1_rr_{suffix}", b.tp1_rr)
+        setattr(cfg, f"tp2_rr_{suffix}", b.tp2_rr)
+        setattr(cfg, f"tp3_rr_{suffix}", b.tp3_rr)
+        setattr(cfg, f"tp1_exit_pct_{suffix}", b.tp1_exit_pct)
+        setattr(cfg, f"tp2_exit_pct_{suffix}", b.tp2_exit_pct)
     cfg.min_score_4h = bases["4H"].min_score
     cfg.min_score_15m = bases["15m"].min_score
     cfg.min_score_5m = bases["5m"].min_score

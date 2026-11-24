@@ -175,3 +175,34 @@ def test_demo_data_is_never_published_to_telegram():
         assert created["eligible_for_telegram"] is False, "a 3-trade sample is not statistical proof"
     finally:
         scheduler.SignalTrade = original
+
+
+def test_each_timeframe_keeps_its_own_target_ladder(tmp_path):
+    """
+    Regression: one shared EngineConfig ladder used to overwrite all three
+    timeframes, so the 4H SAFE profile silently traded the 15m targets.
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from app.database import Base
+    from app.engine.backtester import build_params_for_timeframe
+    from app.models import EngineConfig
+
+    engine = create_engine(f"sqlite:///{tmp_path/'cfg.db'}")
+    Base.metadata.create_all(bind=engine)
+    db = sessionmaker(bind=engine)()
+    cfg = EngineConfig(id=1)
+    db.add(cfg)
+    db.commit()
+
+    p4 = build_params_for_timeframe(cfg, "4H").policy
+    p15 = build_params_for_timeframe(cfg, "15m").policy
+    p5 = build_params_for_timeframe(cfg, "5m").policy
+
+    assert (p4.tp1_rr, p4.tp2_rr, p4.tp3_rr) == (1.3, 2.4, 3.6)
+    assert (p15.tp1_rr, p15.tp2_rr, p15.tp3_rr) == (1.2, 2.2, 3.4)
+    assert (p5.tp1_rr, p5.tp2_rr, p5.tp3_rr) == (1.1, 2.0, 3.0)
+    # Ladders must stay ordered per timeframe (a broken ladder silently kills signals)
+    for pol in (p4, p15, p5):
+        assert pol.tp1_rr < pol.tp2_rr < pol.tp3_rr

@@ -313,11 +313,27 @@ class EngineConfig(Base):
     policy_version: Mapped[str] = mapped_column(String(40), default="", nullable=False)
 
     # Target ladder expressed in R multiples of the *structural* risk distance.
-    tp1_rr: Mapped[float] = mapped_column(Float, default=1.5, nullable=False)
-    tp2_rr: Mapped[float] = mapped_column(Float, default=2.5, nullable=False)
-    tp3_rr: Mapped[float] = mapped_column(Float, default=4.0, nullable=False)
+    # The unsuffixed columns are the historical 15m profile and stay the default
+    # for anything that only knows one ladder; each timeframe has its own
+    # explicit ladder below so the 4H "safe" profile can never be flattened into
+    # the 15m profile by a single admin row.
+    tp1_rr: Mapped[float] = mapped_column(Float, default=1.2, nullable=False)
+    tp2_rr: Mapped[float] = mapped_column(Float, default=2.2, nullable=False)
+    tp3_rr: Mapped[float] = mapped_column(Float, default=3.4, nullable=False)
     tp1_exit_pct: Mapped[float] = mapped_column(Float, default=50.0, nullable=False)
     tp2_exit_pct: Mapped[float] = mapped_column(Float, default=30.0, nullable=False)
+
+    tp1_rr_4h: Mapped[float] = mapped_column(Float, default=1.3, nullable=False)
+    tp2_rr_4h: Mapped[float] = mapped_column(Float, default=2.4, nullable=False)
+    tp3_rr_4h: Mapped[float] = mapped_column(Float, default=3.6, nullable=False)
+    tp1_exit_pct_4h: Mapped[float] = mapped_column(Float, default=50.0, nullable=False)
+    tp2_exit_pct_4h: Mapped[float] = mapped_column(Float, default=30.0, nullable=False)
+
+    tp1_rr_5m: Mapped[float] = mapped_column(Float, default=1.1, nullable=False)
+    tp2_rr_5m: Mapped[float] = mapped_column(Float, default=2.0, nullable=False)
+    tp3_rr_5m: Mapped[float] = mapped_column(Float, default=3.0, nullable=False)
+    tp1_exit_pct_5m: Mapped[float] = mapped_column(Float, default=50.0, nullable=False)
+    tp2_exit_pct_5m: Mapped[float] = mapped_column(Float, default=30.0, nullable=False)
 
     # Strict quality filters (derived from hub3.txt + dis.zip High Accuracy)
     min_score_4h: Mapped[float] = mapped_column(Float, default=8.0, nullable=False)

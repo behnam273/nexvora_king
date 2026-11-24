@@ -178,14 +178,30 @@ def build_params_for_timeframe(cfg: Optional[EngineConfig], timeframe: str) -> H
     """
     policy = get_policy(timeframe)
     if cfg is not None:
+        # Per-timeframe ladder first, with the legacy single-ladder columns as a
+        # fallback for configs created before the per-TF columns existed.
+        def _pick(tf_attr: str, fallback):
+            value = getattr(cfg, tf_attr, None)
+            return fallback if value is None else value
+
+        tf_key = {"4H": "4h", "15m": None, "5m": "5m"}.get(timeframe)
+        if tf_key:
+            tp1 = _pick(f"tp1_rr_{tf_key}", cfg.tp1_rr)
+            tp2 = _pick(f"tp2_rr_{tf_key}", cfg.tp2_rr)
+            tp3 = _pick(f"tp3_rr_{tf_key}", cfg.tp3_rr)
+            ex1 = _pick(f"tp1_exit_pct_{tf_key}", cfg.tp1_exit_pct)
+            ex2 = _pick(f"tp2_exit_pct_{tf_key}", cfg.tp2_exit_pct)
+        else:
+            tp1, tp2, tp3 = cfg.tp1_rr, cfg.tp2_rr, cfg.tp3_rr
+            ex1, ex2 = cfg.tp1_exit_pct, cfg.tp2_exit_pct
         try:
             policy = policy_with_overrides(
                 timeframe,
-                tp1_rr=cfg.tp1_rr,
-                tp2_rr=cfg.tp2_rr,
-                tp3_rr=cfg.tp3_rr,
-                tp1_exit_pct=cfg.tp1_exit_pct,
-                tp2_exit_pct=cfg.tp2_exit_pct,
+                tp1_rr=tp1,
+                tp2_rr=tp2,
+                tp3_rr=tp3,
+                tp1_exit_pct=ex1,
+                tp2_exit_pct=ex2,
                 min_score={
                     "4H": cfg.min_score_4h,
                     "15m": cfg.min_score_15m,
