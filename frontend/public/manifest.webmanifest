@@ -1,0 +1,21 @@
+{
+  "name": "NEXVORA — هوش معاملاتی فارکس",
+  "short_name": "NEXVORA",
+  "description": "سیستم سیگنال‌دهی سخت‌گیرانه Trading Hub 3.0، پیگیری پوزیشن و هوش خبری فارسی",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0B1220",
+  "theme_color": "#0B1220",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/nexvora-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
