@@ -177,6 +177,17 @@ def write_audit(
     db.commit()
 
 
+def _partition_preview_cookie(response: Response) -> None:
+    # CHIPS lets supporting browsers retain an HttpOnly session in an embedded
+    # preview even when ordinary third-party cookies are blocked. Starlette on
+    # Python < 3.14 has no partitioned argument, so append the attribute here.
+    for i in range(len(response.raw_headers) - 1, -1, -1):
+        key, value = response.raw_headers[i]
+        if key.lower() == b"set-cookie" and value.startswith(f"{SESSION_COOKIE_NAME}=".encode()):
+            response.raw_headers[i] = (key, value + b"; Partitioned")
+            break
+
+
 def create_user_session(
     db: Session,
     user: User,
@@ -212,6 +223,11 @@ def create_user_session(
     else:
         cookie_samesite = settings.cookie_samesite
 
+    if is_iframe_preview:
+        # Remove any legacy non-partitioned cookie with the same name so it
+        # cannot shadow the new session when both are sent by the browser.
+        response.delete_cookie(key=SESSION_COOKIE_NAME, path="/", httponly=True, secure=True, samesite="none")
+
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=raw_token,
@@ -221,6 +237,8 @@ def create_user_session(
         max_age=settings.session_ttl_hours * 3600,
         path="/",
     )
+    if is_iframe_preview:
+        _partition_preview_cookie(response)
     return sess, csrf_token
 
 
@@ -243,6 +261,8 @@ def clear_session_cookie(response: Response, request: Optional[Request] = None) 
         secure=cookie_secure,
         samesite=cookie_samesite,
     )
+    if is_iframe_preview:
+        _partition_preview_cookie(response)
 
 
 def _as_aware_utc(dt: datetime) -> datetime:

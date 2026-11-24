@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { apiFetch, setCsrfToken } from '../lib/api';
+import { apiFetch, ApiError, setCsrfToken, SESSION_EXPIRED_EVENT } from '../lib/api';
 import { createRealtimeClient, WsEvent, WsStatus } from '../lib/ws';
 import type { User } from '../types';
 
@@ -49,6 +49,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
+    const onSessionExpired = () => {
+      setCsrfToken('');
+      setUser(null);
+      setLastWsEvent(null);
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+  }, []);
+
+  useEffect(() => {
     refreshMe();
   }, [refreshMe]);
 
@@ -64,22 +74,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => client.close();
   }, [user]);
 
+  const confirmSession = async () => {
+    try {
+      return await apiFetch<{ user: User; csrf_token: string }>('/api/v1/auth/me');
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new Error('مرورگر کوکی نشست را ذخیره نکرد. پیش‌نمایش را در یک تب مستقل باز کنید یا اجازهٔ کوکی را فعال کنید و دوباره وارد شوید.');
+      }
+      throw error;
+    }
+  };
+
   const login = async (email: string, password: string, mfaCode?: string) => {
-    const res = await apiFetch<{ user: User; csrf_token: string }>('/api/v1/auth/login', {
+    await apiFetch<{ user: User; csrf_token: string }>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password, mfa_code: mfaCode || undefined }),
     });
-    setCsrfToken(res.csrf_token);
-    setUser(res.user);
+    const confirmed = await confirmSession();
+    setCsrfToken(confirmed.csrf_token);
+    setUser(confirmed.user);
   };
 
   const register = async (email: string, fullName: string, password: string) => {
-    const res = await apiFetch<{ user: User; csrf_token: string }>('/api/v1/auth/register', {
+    await apiFetch<{ user: User; csrf_token: string }>('/api/v1/auth/register', {
       method: 'POST',
       body: JSON.stringify({ email, full_name: fullName, password }),
     });
-    setCsrfToken(res.csrf_token);
-    setUser(res.user);
+    const confirmed = await confirmSession();
+    setCsrfToken(confirmed.csrf_token);
+    setUser(confirmed.user);
   };
 
   const logout = async () => {
